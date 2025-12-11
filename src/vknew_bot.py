@@ -81,11 +81,11 @@ class VKNewBot:
         """执行刷新操作"""
         try:
             import asyncio
-            # 调用内部的内容获取和处理方法
+            # 内容获取和处理
             result = asyncio.run(self.fetch_and_process_content(chat_id=chat_id, keyword=keyword))
             if result and "success" in result and result["success"]:
                 update.message.reply_text(result["message"],parse_mode='HTML')       
-            else 
+            else:
                 update.message.reply_text(result["message"])         
         except Exception as e:
             logger.error(f"Search error: {str(e)}")
