@@ -56,7 +56,6 @@ class VKTelegramBot:
         try:
             if not os.path.exists(self.config_path):
                 logger.error(f"Config file not found: {self.config_path}")
-                logger.info(f"Please copy config template: cp src/config/config.yaml.example {self.config_path}")
                 raise FileNotFoundError(f"Config file not found: {self.config_path}")
                 
             with open(self.config_path, "r", encoding="utf-8") as f:
@@ -69,6 +68,9 @@ class VKTelegramBot:
                 matches = re.findall(pattern, content)
                 for match in matches:
                     env_value = os.getenv(match, f"${{{match}}}")
+                    # 打印获取到的环境变量的前5位
+                    if not env_value.startswith('${'):
+                        print(f"Environment variable '{match}' value (first 5 chars): {env_value[:5]}...")
                     content = content.replace(f"${{{match}}}", env_value)
                 return content
             
