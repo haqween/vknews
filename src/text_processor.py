@@ -56,7 +56,7 @@ class TextProcessor:
             batch_prompt += f"1. 请严格按照文本顺序，为每个文本生成一个摘要\n"
             batch_prompt += f"2. 每个摘要限制在{max_length}字符以内\n"
             batch_prompt += "3. 输出格式：每行一个摘要，按顺序排列\n"
-            batch_prompt += "4. 不要添加任何额外的说明或编号，只输出摘要内容\n"
+            batch_prompt += "4. Answer only with the final result, no explanations."
             
             messages = [
                 {"role": "system", "content": "You are a professional text summarization assistant. You will receive multiple texts and must generate a summary for each one."},
