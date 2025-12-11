@@ -80,20 +80,20 @@ class TelegramBot:
     
     def keyboard_handler(self, update: Update, context: CallbackContext):
         """处理文本消息事件"""
-        text = update.message.text
+        keyword = update.message.text
         chat_id = update.message.chat_id
 
         update.message.reply_text("正在获取最新消息...")
-        if text == "刷一下":
+        if keyword == "刷一下":
             # 使用上一次的输入作为关键字，如果没有则使用默认的"новости"
             keyword = self.user_input_cache.get(chat_id, DEFAULT_KEYWORD)
-            self._execute_refresh(update, chat_id, keyword)
+            
         else:
             # 不是"刷一下"
             # 缓存用户输入
             self.user_input_cache[chat_id] = keyword
-            
-            self._execute_refresh(update, chat_id, keyword)
+        
+        self._execute_refresh(update, chat_id, keyword)
                 
 
         
