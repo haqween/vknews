@@ -1,0 +1,32 @@
+# VK配置
+vk:
+  access_token: "${VK_ACCESS_TOKEN}"  # 从环境变量读取
+  api_version: "5.131"
+
+# Telegram配置
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"  # 从环境变量读取
+  # Webhook配置（必须）
+  webhook_url: "https://vknews.onrender.com"  # 注意：必须是HTTPS，请替换为您的实际域名（localhost不可用）
+  webhook_port: 10000  # 端口，默认8443
+
+# AI配置
+ai:
+  providers:
+    - name: "siliconflow"
+      api_key: "${SILICONFLOW_API_KEY}"  # 从环境变量读取
+      model: "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"  # 免费使用的Qwen2.5模型
+    - name: "openrouter"
+      api_key: "${OPENROUTER_API_KEY}"  # 从环境变量读取
+      model: "tngtech/deepseek-r1t2-chimera:free"
+  summary:
+    zh_max_length: 30
+    ru_max_length: 60
+    language: "zh"
+
+# 系统配置
+system:
+  fetch_interval: 60  # 分钟
+  max_content_per_fetch: 10
+  cache_enabled: true
+  log_level: "info"

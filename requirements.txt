@@ -1,0 +1,7 @@
+requests
+telebot
+openai
+PyYAML
+python-telegram-bot==13.7
+flask
+python-dotenv
