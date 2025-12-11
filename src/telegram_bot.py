@@ -89,22 +89,11 @@ class TelegramBot:
             keyword = self.user_input_cache.get(chat_id, DEFAULT_KEYWORD)
             self._execute_refresh(update, chat_id, keyword)
         else:
-            # 不是"刷一下"，需要翻译
-            try:
-                import asyncio
-                keyword = asyncio.run(self.text_processor.translate_to_russian(text))
-                if not keyword:
-                    keyword = DEFAULT_KEYWORD
-                
-                else:
-                    # 缓存用户输入
-                    self.user_input_cache[chat_id] = keyword
-                
-                self._execute_refresh(update, chat_id, keyword)
-            except Exception as e:
-                logger.error(f"Translation error: {str(e)}")
-                update.message.reply_text("发生错误，请稍后重试")
-                return
+            # 不是"刷一下"
+            # 缓存用户输入
+            self.user_input_cache[chat_id] = keyword
+            
+            self._execute_refresh(update, chat_id, keyword)
                 
 
         
