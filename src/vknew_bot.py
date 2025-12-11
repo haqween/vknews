@@ -158,7 +158,7 @@ class VKNewBot:
             if processed_contents:
                 # Filter contents to ensure we only send messages with all required fields
                 filtered_contents = [
-                    content for content in contents
+                    content for content in processed_contents
                     if content.get("zh_summary", "") and content.get("ru_summary", "") and content.get("url", "")
                 ]
                 
