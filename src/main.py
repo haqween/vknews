@@ -10,7 +10,8 @@ from typing import Dict, Any, List
 from src.vk_api import VKAPI
 from src.ai_api import AIProcessor
 from src.text_processor import TextProcessor
-from src.telegram_bot import TelegramBot
+from src.telegram_api import TelegramAPI
+from src.vknew_bot import VKNewBot
 
 # 配置日志
 logging.basicConfig(
@@ -45,8 +46,9 @@ class VKTelegramBot:
         self.config = self._load_config()
         self.vk_api = None
         self.ai_processor = None
-        self.telegram_bot = None
-        self.cache = set()  # 用于存储已处理的内容ID
+        self.telegram_api = None
+        self.text_processor = None
+        self.vknew_bot = None
         
         # 初始化模块
         self._initialize_modules()
@@ -106,82 +108,33 @@ class VKTelegramBot:
             
             # Initialize Telegram bot module
             telegram_config = self.config.get("telegram", {})
-            
-            # Check if webhook_url is configured (required for webhook mode)
-            webhook_url = telegram_config.get("webhook_url")
-            if not webhook_url:
-                raise ValueError("webhook_url is required in telegram config for webhook mode")
-            
-            self.telegram_bot = TelegramBot(
+            self.telegram_api = TelegramAPI(
                 bot_token=telegram_config.get("bot_token"),
-                webhook_url=webhook_url,
+                webhook_url=telegram_config.get("webhook_url"),
                 port=telegram_config.get("webhook_port", 8443)
             )
-            self.telegram_bot.vk_api = self.vk_api
-            self.telegram_bot.set_ai_processor(self.ai_processor)
+            logger.info("Telegram API module initialized successfully")
             
             # Create and set text processor
             self.text_processor = TextProcessor(
                 ai_providers=self.config.get("ai", {}).get("providers", [])
             )
-            self.telegram_bot.set_text_processor(self.text_processor)
+            logger.info("Text processor module initialized successfully")
             
-            # Register content fetch callback function
-            self.telegram_bot.register_fetch_callback(self._fetch_and_process_content)
-            
-            logger.info("Telegram bot module initialized successfully")
+            # Initialize VKNewBot
+            self.vknew_bot = VKNewBot()
+            self.vknew_bot.set_telegram_api(self.telegram_api)
+            self.vknew_bot.set_vk_api(self.vk_api)
+            self.vknew_bot.set_ai_processor(self.ai_processor)
+            self.vknew_bot.set_text_processor(self.text_processor)
+            self.vknew_bot.set_config(self.config)
+            logger.info("VKNewBot module initialized successfully")
             
         except Exception as e:
             logger.error(f"Failed to initialize modules: {str(e)}")
             raise
     
-    async def _fetch_and_process_content(self, chat_id: str = None, keyword: str = None) -> Dict[str, Any]:
-        """Fetch content, process and send
-        
-        Args:
-            chat_id: Optional, Telegram chat ID to send the content to
-            keyword: Optional, Search keyword for VK API
-        """
-        try:
-            logger.info("Starting VK content fetch...")
-            
-            # Get configuration
-            ai_config = self.config.get("ai", {})
-            system_config = self.config.get("system", {})
-            
-            # Fetch newsfeed content
-            raw_content_list = self.vk_api.get_newsfeed(keyword=keyword)
 
-            logger.info(f"Fetched {len(raw_content_list)} VK items")
-            
-            # Process all fetched content regardless of whether it's been processed before
-            content_list = []
-            for raw_content in raw_content_list:
-                content = self.vk_api.format_content(raw_content)
-                content_list.append(content)
-            
-            if not content_list:
-                logger.info("No content to process")
-                return {"success": True, "count": 0}
-            
-            # Process content in batch
-            processed_contents = self.text_processor.process_content_batch(content_list, ai_config)
-            
-            processed_count = len(processed_contents)
-            
-            # Send all processed contents as a single message if there are any
-            if processed_contents:
-                success = self.telegram_bot.send_multiple_processed_content(processed_contents, chat_id=chat_id)
-                if not success:
-                    logger.error("Failed to send multiple processed contents")
-                    return {"success": False, "message": "发送内容失败"}
-            
-            logger.info(f"Successfully processed and sent {processed_count} items")
-            return {"success": True, "count": processed_count}
-            
-        except Exception as e:
-            logger.error(f"Failed to fetch and process content: {str(e)}")
-            return {"success": False, "message": str(e)}
     
 
     
@@ -191,13 +144,9 @@ class VKTelegramBot:
             logger.info("Starting VK to Telegram News Summary & Translation Bot...")
             
             # Start Telegram bot
-            self.telegram_bot.start()
+            self.telegram_api.start(self.vknew_bot)
             logger.info("Telegram bot started successfully")
-            
-            # 使用webhook模式
-            logger.info("Starting bot in webhook mode...")
-            self.telegram_bot.run_webhook()
-            
+        
         except KeyboardInterrupt:
             logger.info("Bot stopped")
         except Exception as e:

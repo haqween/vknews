@@ -60,142 +60,6 @@ class BaseAIProvider(ABC):
         return ""
 
 
-# DeepSeek AI Provider
-class DeepSeekAIProvider(BaseAIProvider):
-    """DeepSeek AI provider implementation"""
-    
-    def __init__(self, api_key: str, model: str = None):
-        super().__init__(api_key, model or "deepseek-chat")
-        self.api_url = "https://api.deepseek.com/chat/completions"
-    
-    def _call_api(self, messages: List[Dict], max_tokens: int = 200, temperature: float = 0.3) -> str:
-        """Call DeepSeek API"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature
-        }
-        
-        response = requests.post(self.api_url, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        logger.debug(f"DEEPSEEK API full response: {result}")
-        return result["choices"][0]["message"]["content"].strip()
-
-# OpenAI AI Provider
-class OpenAIAIProvider(BaseAIProvider):
-    """OpenAI AI provider implementation"""
-    
-    def __init__(self, api_key: str, model: str = None):
-        super().__init__(api_key, model or "gpt-3.5-turbo")
-        self.api_url = "https://api.openai.com/v1/chat/completions"
-    
-    def _call_api(self, messages: List[Dict], max_tokens: int = 200, temperature: float = 0.3) -> str:
-        """Call OpenAI API"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature
-        }
-        
-        response = requests.post(self.api_url, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        logger.debug(f"OPENAI API full response: {result}")
-        return result["choices"][0]["message"]["content"].strip()
-
-# Gemini AI Provider
-class GeminiAIProvider(BaseAIProvider):
-    """Google Gemini AI provider implementation"""
-    
-    def __init__(self, api_key: str, model: str = None):
-        super().__init__(api_key, model or "gemini-1.5-flash")
-        self.api_url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent"
-    
-    def _call_api(self, messages: List[Dict], max_tokens: int = 200, temperature: float = 0.3) -> str:
-        """Call Gemini API"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        # Convert OpenAI-style messages to Gemini format
-        gemini_content = []
-        for msg in messages:
-            role = msg["role"]
-            content = msg["content"]
-            
-            # Gemini uses "user" and "model" roles instead of "system", "user", "assistant"
-            if role == "system":
-                # Treat system messages as user instructions for Gemini
-                gemini_content.append({
-                    "role": "user",
-                    "parts": [{"text": content}]
-                })
-            elif role in ["user", "assistant"]:
-                gemini_content.append({
-                    "role": role,
-                    "parts": [{"text": content}]
-                })
-        
-        data = {
-            "contents": gemini_content,
-            "generationConfig": {
-                "maxOutputTokens": max_tokens,
-                "temperature": temperature
-            }
-        }
-        
-        response = requests.post(self.api_url, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        logger.debug(f"GEMINI API full response: {result}")
-        return result["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-# DashScope AI Provider
-class DashScopeAIProvider(BaseAIProvider):
-    """Alibaba DashScope AI provider implementation"""
-    
-    def __init__(self, api_key: str, model: str = None):
-        super().__init__(api_key, model or "qwen-turbo")
-        self.api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-    
-    def _call_api(self, messages: List[Dict], max_tokens: int = 200, temperature: float = 0.3) -> str:
-        """Call DashScope API"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature
-        }
-        
-        response = requests.post(self.api_url, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        logger.debug(f"DASHSCOPE API full response: {result}")
-        return result["choices"][0]["message"]["content"].strip()
-
 # OpenRouter AI Provider
 class OpenRouterAIProvider(BaseAIProvider):
     """OpenRouter AI provider implementation"""
@@ -226,7 +90,7 @@ class OpenRouterAIProvider(BaseAIProvider):
         response.raise_for_status()
         
         result = response.json()
-        logger.debug(f"OPENROUTER API full response: {result}")
+        logger.info(f"OPENROUTER API full response: {result}")
         return result["choices"][0]["message"]["content"].strip()
 
 # SiliconFlow AI Provider
@@ -255,7 +119,7 @@ class SiliconFlowAIProvider(BaseAIProvider):
         response.raise_for_status()
         
         result = response.json()
-        logger.debug(f"SILICONFLOW API full response: {result}")
+        logger.info(f"SILICONFLOW API full response: {result}")
         return result["choices"][0]["message"]["content"].strip()
 
 # AI Provider Factory
@@ -267,15 +131,7 @@ class AIProviderFactory:
         """Create and return an AI provider instance based on the provider type"""
         provider_type = provider_type.lower()
         
-        if provider_type == "deepseek":
-            return DeepSeekAIProvider(api_key, model)
-        elif provider_type == "openai":
-            return OpenAIAIProvider(api_key, model)
-        elif provider_type == "gemini":
-            return GeminiAIProvider(api_key, model)
-        elif provider_type == "dashscope":
-            return DashScopeAIProvider(api_key, model)
-        elif provider_type == "openrouter":
+        if provider_type == "openrouter":
             return OpenRouterAIProvider(api_key, model)
         elif provider_type == "siliconflow":
             return SiliconFlowAIProvider(api_key, model)
