@@ -42,7 +42,7 @@ class TextProcessor:
             provider_name = selected_provider["name"]
             api_key = selected_provider["api_key"]
             model = selected_provider["model"]
-            log.info(f"generate summary model: {provider_name} {model}")
+            logger.info(f"generate summary using model: {provider_name} {model}")
             # Create provider instance on the fly
             provider_instance = AIProviderFactory.create_provider(provider_name, api_key, model)
             
