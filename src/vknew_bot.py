@@ -84,9 +84,9 @@ class VKNewBot:
             # 调用内部的内容获取和处理方法
             result = asyncio.run(self.fetch_and_process_content(chat_id=chat_id, keyword=keyword))
             if result and "success" in result and result["success"]:
-                update.message.reply_text(result["message"])
-                logger.info(f"Successfully fetched and sent {result['count']} newsfeed items with keyword: {keyword}")
-            
+                update.message.reply_text(result["message"],parse_mode='HTML')       
+            else 
+                update.message.reply_text(result["message"])         
         except Exception as e:
             logger.error(f"Search error: {str(e)}")
             update.message.reply_text("处理请求时出错，请稍后重试")
@@ -148,7 +148,7 @@ class VKNewBot:
             
             if not content_list:
                 logger.info("No content to process")
-                return {"success": True, "count": 0}
+                return {"success": False, "message": "获取消息失败"}
             
             # Process content in batch
             ai_config = self.config.get("ai", {})
