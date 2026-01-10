@@ -111,23 +111,16 @@ class TextProcessor:
         if not valid_contents:
             return contents
         
-        # Extract texts for batch processing
-        texts = [content["text"] for content in valid_contents]
-        
         # Get summary configuration
         summary_config = config.get("summary", {})
-        # 中文摘要最长30个文字，俄语支持60个
-        zh_max_length = summary_config.get("zh_max_length", 30)
+        # 俄语摘要最长60个文字
         ru_max_length = summary_config.get("ru_max_length", 60)
-        
-        # Generate summaries in batch
-        zh_summaries = self.generate_summaries_batch(texts, max_length=zh_max_length, language="zh")
         
         # Create result list with the same order as input
         results = contents.copy()
         
         # Process valid contents
-        for i, (content, zh_summary) in enumerate(zip(valid_contents, zh_summaries)):
+        for i, content in enumerate(valid_contents):
             original_text = content["text"]
             
             # Directly truncate original text for Russian summary (no AI generation)
@@ -136,8 +129,7 @@ class TextProcessor:
             # Update the content in the results list
             results[valid_indices[i]] = {
                 **content,
-                "ru_summary": ru_summary,
-                "zh_summary": zh_summary
+                "ru_summary": ru_summary
             }
         
         return results

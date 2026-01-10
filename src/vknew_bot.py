@@ -97,7 +97,6 @@ class VKNewBot:
         
         for i, content in enumerate(contents, 1):
             # Get content fields
-            zh_summary = content.get("zh_summary", "")
             ru_summary = content.get("ru_summary", "")
             url = content.get("url", "")
             date_timestamp = content.get("date", 0)
@@ -113,7 +112,7 @@ class VKNewBot:
                 publish_time = ""
             
             # Format with publish time outside link
-            message += f"🔗 <a href='{url}'><strong>{zh_summary}</strong></a>\n"
+            message += f"🔗 <a href='{url}'><strong>{ru_summary[:50]}</strong></a>\n"
             message += f"<code>{ru_summary}（{publish_time}）</code>"
             
             # Consistent spacing at the end
@@ -159,11 +158,11 @@ class VKNewBot:
                 # Filter contents to ensure we only send messages with all required fields
                 filtered_contents = [
                     content for content in processed_contents
-                    if content.get("zh_summary", "") and content.get("ru_summary", "") and content.get("url", "")
+                    if content.get("ru_summary", "") and content.get("url", "")
                 ]
                 
                 if not filtered_contents:
-                    logger.info("No valid content to send (missing zh_summary, ru_summary, or url)")
+                    logger.info("No valid content to send (missing ru_summary or url)")
                     return {"success": False, "message": "获取消息失败"}
                 message = self.generate_multiple_processed_content(filtered_contents, chat_id=chat_id)
                 if not message:
