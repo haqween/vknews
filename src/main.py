@@ -164,15 +164,11 @@ class VKTelegramBot:
                     if self.text_processor.is_activity(content["text"]):
                         logger.info(f"Detected activity: {content['url']}")
                         
-                        # 处理文本（生成摘要等）
-                        ai_config = self.config.get("ai", {})
-                        processed_content = self.text_processor.process_content_batch([content], ai_config)[0]
-                        
-                        # 生成消息
-                        message = self.vknew_bot.generate_multiple_processed_content([processed_content])
+                        # 直接创建包含链接的消息
+                        message = f"🔗 检测到活动: <a href='{content['url']}'>{content['text'][:50]}...</a>"
                         
                         # 发送给所有注册用户
-                        if message and self.vknew_bot.user_chat_ids:
+                        if self.vknew_bot.user_chat_ids:
                             for chat_id in self.vknew_bot.user_chat_ids:
                                 try:
                                     # 使用Telegram API发送消息
