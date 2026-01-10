@@ -201,7 +201,7 @@ class TextProcessor:
             
             # Prepare the prompt for activity detection
             messages = [
-                {"role": "system", "content": "You are a professional content classifier. Please determine if the given text is an announcement for an activity or event. Return only 'YES' if it is an activity, otherwise return 'NO'. Do not provide any explanations."},
+                {"role": "system", "content": "You are a professional content classifier. Please determine if the given text is an announcement for an upcoming activity or event that meets all the following criteria:\n1. It is an announcement for an activity or event.\n2. The activity has not yet occurred (it is scheduled for the future).\n3. The activity is located in either Moscow or Saint Petersburg.\n\nReturn only 'YES' if all criteria are met, otherwise return 'NO'. Do not provide any explanations."},
                 {"role": "user", "content": text}
             ]
             
