@@ -2,6 +2,7 @@ import yaml
 import logging
 import asyncio
 import os
+import time
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
@@ -50,8 +51,60 @@ class VKTelegramBot:
         self.text_processor = None
         self.vknew_bot = None
         
+        # 初始化活动帖子缓存
+        self.activity_cache = {}  # 缓存格式：{cache_key: (is_activity, timestamp)}
+        
         # 初始化模块
         self._initialize_modules()
+        
+    def _get_cache_key(self, text: str) -> str:
+        """生成缓存键：前10个字符+前100个字符的hashcode"""
+        import hashlib
+        prefix = text[:10]  # 前10个字符
+        hash_input = text[:100]  # 前100个字符
+        # 计算hashcode
+        hash_code = hashlib.md5(hash_input.encode('utf-8')).hexdigest()
+        return f"{prefix}:{hash_code}"
+    
+    def _is_cached(self, text: str) -> bool:
+        """检查帖子是否已缓存且未过期"""
+        cache_key = self._get_cache_key(text)
+        if cache_key in self.activity_cache:
+            is_activity, timestamp = self.activity_cache[cache_key]
+            # 检查是否在10分钟内
+            if time.time() - timestamp < 600:  # 10分钟 = 600秒
+                return True
+            else:
+                # 缓存过期，删除
+                del self.activity_cache[cache_key]
+        return False
+    
+    def _get_cached_result(self, text: str) -> bool:
+        """获取缓存结果"""
+        cache_key = self._get_cache_key(text)
+        if cache_key in self.activity_cache:
+            is_activity, timestamp = self.activity_cache[cache_key]
+            return is_activity
+        return False
+    
+    def _cache_result(self, text: str, is_activity: bool):
+        """缓存判断结果"""
+        cache_key = self._get_cache_key(text)
+        self.activity_cache[cache_key] = (is_activity, time.time())
+        # 清理过期缓存
+        self._clean_expired_cache()
+    
+    def _clean_expired_cache(self):
+        """清理过期缓存"""
+        current_time = time.time()
+        expired_keys = []
+        for key, (is_activity, timestamp) in self.activity_cache.items():
+            if current_time - timestamp >= 600:  # 10分钟过期
+                expired_keys.append(key)
+        
+        # 删除过期缓存
+        for key in expired_keys:
+            del self.activity_cache[key]
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration file and resolve environment variables"""
@@ -157,15 +210,27 @@ class VKTelegramBot:
                     content = self.vk_api.format_content(raw_content)
                     
                     # 检查是否有文本内容
-                    if not content.get("text", ""):
+                    text = content.get("text", "")
+                    if not text:
+                        continue
+                    
+                    # 检查是否已缓存
+                    if self._is_cached(text):
+                        logger.info(f"Post already processed, skipping: {content['url']}")
                         continue
                     
                     # 调用AI判断是否为活动
-                    if self.text_processor.is_activity(content["text"]):
+                    is_activity = self.text_processor.is_activity(text)
+                    
+                    # 缓存结果
+                    self._cache_result(text, is_activity)
+                    
+                    # 如果是活动，推送给用户
+                    if is_activity:
                         logger.info(f"Detected activity: {content['url']}")
                         
                         # 直接创建包含链接的消息
-                        message = f"🔗 检测到活动: <a href='{content['url']}'>{content['text'][:50]}...</a>"
+                        message = f"🔗 检测到活动: <a href='{content['url']}'>{text[:50]}...</a>"
                         
                         # 发送给所有注册用户
                         if self.vknew_bot.user_chat_ids:
