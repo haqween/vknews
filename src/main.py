@@ -138,14 +138,77 @@ class VKTelegramBot:
     
 
     
+    async def _scheduled_task(self):
+        """定时任务：每分钟从VK获取最新帖子，判断是否为活动并推送给用户"""
+        import asyncio
+        logger.info("Starting scheduled task")
+        
+        while True:
+            try:
+                logger.info("Running scheduled task: checking for new activities")
+                
+                # 从VK获取最新帖子
+                raw_content_list = self.vk_api.get_newsfeed(count=20)  # 获取20条最新帖子
+                logger.info(f"Fetched {len(raw_content_list)} posts from VK")
+                
+                # 处理每个帖子
+                for raw_content in raw_content_list:
+                    # 格式化帖子内容
+                    content = self.vk_api.format_content(raw_content)
+                    
+                    # 检查是否有文本内容
+                    if not content.get("text", ""):
+                        continue
+                    
+                    # 调用AI判断是否为活动
+                    if self.text_processor.is_activity(content["text"]):
+                        logger.info(f"Detected activity: {content['url']}")
+                        
+                        # 处理文本（生成摘要等）
+                        ai_config = self.config.get("ai", {})
+                        processed_content = self.text_processor.process_content_batch([content], ai_config)[0]
+                        
+                        # 生成消息
+                        message = self.vknew_bot.generate_multiple_processed_content([processed_content])
+                        
+                        # 发送给所有注册用户
+                        if message and self.vknew_bot.user_chat_ids:
+                            for chat_id in self.vknew_bot.user_chat_ids:
+                                try:
+                                    # 使用Telegram API发送消息
+                                    self.telegram_api.updater.bot.send_message(
+                                        chat_id=chat_id,
+                                        text=message,
+                                        parse_mode='HTML'
+                                    )
+                                    logger.info(f"Sent activity to user {chat_id}")
+                                except Exception as e:
+                                    logger.error(f"Failed to send activity to user {chat_id}: {str(e)}")
+            
+            except Exception as e:
+                logger.error(f"Error in scheduled task: {str(e)}")
+            
+            # 等待1分钟
+            await asyncio.sleep(60)
+    
     async def start(self):
         """Start the bot"""
         try:
             logger.info("Starting VK to Telegram News Summary & Translation Bot...")
             
-            # Start Telegram bot
-            self.telegram_api.start(self.vknew_bot)
+            # 启动Telegram bot
+            import threading
+            threading.Thread(target=self.telegram_api.start, args=(self.vknew_bot,), daemon=True).start()
             logger.info("Telegram bot started successfully")
+            
+            # 启动定时任务
+            import asyncio
+            asyncio.create_task(self._scheduled_task())
+            logger.info("Scheduled task started successfully")
+            
+            # 保持主程序运行
+            while True:
+                await asyncio.sleep(3600)  # 每小时检查一次
         
         except KeyboardInterrupt:
             logger.info("Bot stopped")

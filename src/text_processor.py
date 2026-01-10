@@ -183,3 +183,46 @@ class TextProcessor:
         except Exception as e:
             logger.error(f"Translation error: {str(e)}")
             return ""
+    
+    def is_activity(self, text: str) -> bool:
+        """Check if the given text is an activity/event announcement
+        
+        Args:
+            text: The text to check
+            
+        Returns:
+            True if the text is an activity, False otherwise
+        """
+        if not self.ai_providers:
+            logger.error("No AI providers configured for activity detection")
+            return False
+            
+        try:
+            # Randomly select a provider
+            selected_provider = random.choice(self.ai_providers)
+            provider_name = selected_provider["name"]
+            api_key = selected_provider["api_key"]
+            model = selected_provider["model"]
+            
+            # Create provider instance on the fly
+            provider_instance = AIProviderFactory.create_provider(provider_name, api_key, model)
+            
+            # Prepare the prompt for activity detection
+            messages = [
+                {"role": "system", "content": "You are a professional content classifier. Please determine if the given text is an announcement for an activity or event. Return only 'YES' if it is an activity, otherwise return 'NO'. Do not provide any explanations."},
+                {"role": "user", "content": text}
+            ]
+            
+            # Call the AI API
+            response = provider_instance._execute_with_retry(provider_instance._call_api, messages, max_tokens=10, temperature=0.1)
+            
+            if not response:
+                logger.error("Activity detection failed, returning False")
+                return False
+            
+            # Check the response
+            return response.strip().upper() == "YES"
+            
+        except Exception as e:
+            logger.error(f"Failed to detect activity: {str(e)}")
+            return False
