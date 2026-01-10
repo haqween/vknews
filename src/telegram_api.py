@@ -46,9 +46,16 @@ class TelegramAPI:
             return 'OK', 200
 
         @self.flask_app.route('/')
-        def index():
-            """健康检查端点"""
-            return 'Telegram Bot Webhook is running', 200
+        @self.flask_app.route('/health')
+        @self.flask_app.route('/ping')
+        def health_check():
+            """健康检查端点，用于外部定时调用"""
+            return {
+                'status': 'ok',
+                'service': 'VK Telegram Bot',
+                'timestamp': datetime.datetime.now().isoformat(),
+                'message': 'Service is running'
+            }, 200, {'Content-Type': 'application/json'}
 
     def set_webhook(self):
         """设置webhook"""
