@@ -95,7 +95,7 @@ class VKAPI:
         response = self._make_request("wall.get", params)
         return response.get("items", [])
     
-    def get_newsfeed(self, count: int = 10, start_time: int = None, end_time: int = None, keyword: str = "новости") -> List[Dict[str, Any]]:
+    def get_newsfeed(self, count: int = 10, start_time: int = None, end_time: int = None, keyword: str = "новости", start_from: str = None) -> List[Dict[str, Any]]:
         """Get newsfeed content using VK newsfeed.search API
         
         Args:
@@ -103,9 +103,10 @@ class VKAPI:
             start_time: Earliest timestamp (in Unix time) of a news item to return
             end_time: Latest timestamp (in Unix time) of a news item to return
             keyword: Search keyword for newsfeed search
+            start_from: Start parameter for pagination
             
         Returns:
-            List of newsfeed items
+            Tuple containing list of newsfeed items and next page token
         """
         params = {
             "q": keyword,  # 搜索关键词
@@ -117,9 +118,13 @@ class VKAPI:
             params["start_time"] = start_time
         if end_time:
             params["end_time"] = end_time
+        if start_from:
+            params["start_from"] = start_from
         
         response = self._make_request("newsfeed.search", params)
-        return response.get("items", [])
+        items = response.get("items", [])
+        next_page = response.get("next_from")
+        return items, next_page
 
     def get_community_content(self, communities: List[Dict[str, Any]], community_name: str, max_content_per_fetch: int = 20) -> List[Dict[str, Any]]:
         """Get content from a specific community"""

@@ -200,12 +200,32 @@ class VKTelegramBot:
             try:
                 logger.info("Running scheduled task: checking for new activities")
                 
-                # 从VK获取最新帖子，使用"афиша СПб"作为过滤条件
-                raw_content_list = self.vk_api.get_newsfeed(count=20, keyword="афиша СПб")  # 获取20条最新帖子
-                logger.info(f"Fetched {len(raw_content_list)} posts from VK")
+                # 从VK获取最新帖子，使用"афиша СПб"作为过滤条件，分页获取，每次取20条，取5页
+                all_raw_content = []
+                max_pages = 5
+                current_page = 0
+                start_from = None
+                
+                while current_page < max_pages:
+                    # 分页获取帖子
+                    raw_content, start_from = self.vk_api.get_newsfeed(count=20, keyword="афиша СПб", start_from=start_from)
+                    logger.info(f"Fetched {len(raw_content)} posts from VK (page {current_page + 1}/{max_pages})")
+                    
+                    # 添加到总列表
+                    all_raw_content.extend(raw_content)
+                    
+                    # 如果没有更多页，退出循环
+                    if not start_from:
+                        logger.info("No more pages available, exiting pagination loop")
+                        break
+                    
+                    # 增加页码
+                    current_page += 1
+                
+                logger.info(f"Total posts fetched: {len(all_raw_content)}")
                 
                 # 处理每个帖子
-                for raw_content in raw_content_list:
+                for raw_content in all_raw_content:
                     # 格式化帖子内容
                     content = self.vk_api.format_content(raw_content)
                     
