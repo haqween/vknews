@@ -200,8 +200,8 @@ class VKTelegramBot:
             try:
                 logger.info("Running scheduled task: checking for new activities")
                 
-                # 从VK获取最新帖子
-                raw_content_list = self.vk_api.get_newsfeed(count=20)  # 获取20条最新帖子
+                # 从VK获取最新帖子，使用"афиша СПб"作为过滤条件
+                raw_content_list = self.vk_api.get_newsfeed(count=20, keyword="афиша СПб")  # 获取20条最新帖子
                 logger.info(f"Fetched {len(raw_content_list)} posts from VK")
                 
                 # 处理每个帖子
