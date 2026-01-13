@@ -57,39 +57,38 @@ class VKTelegramBot:
         # 初始化模块
         self._initialize_modules()
         
-    def _get_cache_key(self, text: str) -> str:
-        """生成缓存键：前10个字符+前100个字符的hashcode"""
-        import hashlib
-        prefix = text[:10]  # 前10个字符
-        hash_input = text[:100]  # 前100个字符
-        # 计算hashcode
-        hash_code = hashlib.md5(hash_input.encode('utf-8')).hexdigest()
-        return f"{prefix}:{hash_code}"
-    
-    def _is_cached(self, text: str) -> bool:
+    def _is_cached(self, url: str) -> bool:
         """检查帖子是否已缓存且未过期"""
-        cache_key = self._get_cache_key(text)
+        # 使用帖子url作为缓存key
+        cache_key = url
         if cache_key in self.activity_cache:
             is_activity, timestamp = self.activity_cache[cache_key]
-            # 检查是否在10分钟内
-            if time.time() - timestamp < 600:  # 10分钟 = 600秒
-                return True
+            # 根据是否为活动设置不同的缓存时间
+            if is_activity:
+                # 活动帖子缓存5小时
+                if time.time() - timestamp < 18000:  # 5小时 = 18000秒
+                    return True
             else:
-                # 缓存过期，删除
-                del self.activity_cache[cache_key]
+                # 非活动帖子缓存10分钟
+                if time.time() - timestamp < 600:  # 10分钟 = 600秒
+                    return True
+            # 缓存过期，删除
+            del self.activity_cache[cache_key]
         return False
     
-    def _get_cached_result(self, text: str) -> bool:
+    def _get_cached_result(self, url: str) -> bool:
         """获取缓存结果"""
-        cache_key = self._get_cache_key(text)
+        # 使用帖子url作为缓存key
+        cache_key = url
         if cache_key in self.activity_cache:
             is_activity, timestamp = self.activity_cache[cache_key]
             return is_activity
         return False
     
-    def _cache_result(self, text: str, is_activity: bool):
+    def _cache_result(self, url: str, is_activity: bool):
         """缓存判断结果"""
-        cache_key = self._get_cache_key(text)
+        # 使用帖子url作为缓存key
+        cache_key = url
         self.activity_cache[cache_key] = (is_activity, time.time())
         # 清理过期缓存
         self._clean_expired_cache()
@@ -99,8 +98,14 @@ class VKTelegramBot:
         current_time = time.time()
         expired_keys = []
         for key, (is_activity, timestamp) in self.activity_cache.items():
-            if current_time - timestamp >= 600:  # 10分钟过期
-                expired_keys.append(key)
+            if is_activity:
+                # 活动帖子缓存5小时
+                if current_time - timestamp >= 18000:  # 5小时 = 18000秒
+                    expired_keys.append(key)
+            else:
+                # 非活动帖子缓存10分钟
+                if current_time - timestamp >= 600:  # 10分钟 = 600秒
+                    expired_keys.append(key)
         
         # 删除过期缓存
         for key in expired_keys:
@@ -194,13 +199,21 @@ class VKTelegramBot:
     async def _scheduled_task(self):
         """定时任务：每分钟从VK获取最新帖子，判断是否为活动并推送给用户"""
         import asyncio
+        import random
         logger.info("Starting scheduled task")
+        
+        # 关键词列表
+        keywords = ["афиша СПб", "выставка", "экскурсия", "вечер", "лекция"]
         
         while True:
             try:
                 logger.info("Running scheduled task: checking for new activities")
                 
-                # 从VK获取最新帖子，使用"афиша СПб"作为过滤条件，分页获取，每次取20条，取5页
+                # 随机选择一个关键词
+                keyword = random.choice(keywords)
+                logger.info(f"Using keyword: {keyword}")
+                
+                # 从VK获取最新帖子，使用选择的关键词作为过滤条件，分页获取，每次取20条，取5页
                 all_raw_content = []
                 max_pages = 5
                 current_page = 0
@@ -208,8 +221,8 @@ class VKTelegramBot:
                 
                 while current_page < max_pages:
                     # 分页获取帖子
-                    raw_content, start_from = self.vk_api.get_newsfeed(count=20, keyword="афиша СПб", start_from=start_from)
-                    logger.info(f"Fetched {len(raw_content)} posts from VK (page {current_page + 1}/{max_pages})")
+                    raw_content, start_from = self.vk_api.get_newsfeed(count=20, keyword=keyword, start_from=start_from)
+                    logger.info(f"Fetched {len(raw_content)} posts from VK (page {current_page + 1}/{max_pages}) with keyword: {keyword}")
                     
                     # 添加到总列表
                     all_raw_content.extend(raw_content)
@@ -229,28 +242,33 @@ class VKTelegramBot:
                     # 格式化帖子内容
                     content = self.vk_api.format_content(raw_content)
                     
+                    # 获取帖子URL
+                    post_url = content.get("url", "")
+                    if not post_url:
+                        continue
+                    
                     # 检查是否有文本内容
                     text = content.get("text", "")
                     if not text:
                         continue
                     
                     # 检查是否已缓存
-                    if self._is_cached(text):
-                        logger.info(f"Post already processed, skipping: {content['url']}")
+                    if self._is_cached(post_url):
+                        logger.info(f"Post already processed, skipping: {post_url}")
                         continue
                     
                     # 调用AI判断是否为活动
                     is_activity = self.text_processor.is_activity(text)
                     
                     # 缓存结果
-                    self._cache_result(text, is_activity)
+                    self._cache_result(post_url, is_activity)
                     
                     # 如果是活动，推送给用户
                     if is_activity:
-                        logger.info(f"Detected activity: {content['url']}")
+                        logger.info(f"Detected activity: {post_url}")
                         
                         # 直接创建包含链接的消息
-                        message = f"🔗 检测到活动: <a href='{content['url']}'>{text[:50]}...</a>"
+                        message = f"🔗 <a href='{post_url}'>Обнаружено мероприятие: </a>"
                         
                         # 发送给所有注册用户
                         if self.vknew_bot.user_chat_ids:
